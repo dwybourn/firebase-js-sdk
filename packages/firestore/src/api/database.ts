@@ -93,21 +93,10 @@ import { AsyncQueue } from '../util/async_queue';
 import { Code, FirestoreError } from '../util/error';
 import {
   invalidClassError,
-  validateArgType,
-  validateAtLeastNumberOfArgs,
-  validateBetweenNumberOfArgs,
-  validateDefined,
-  validateExactNumberOfArgs,
-  validateNamedOptionalPropertyEquals,
-  validateNamedOptionalType,
-  validateNamedType,
-  validateOptionalArgType,
-  validateOptionalArrayElements,
-  validateOptionNames,
   validatePositiveNumber,
-  validateStringEnum,
   valueDescription,
-  validateIsNotUsedTogether
+  validateIsNotUsedTogether,
+  validateNonEmptyString
 } from '../util/input_validation';
 import { getLogLevel, logError, LogLevel, setLogLevel } from '../util/log';
 import { AutoId } from '../util/misc';
@@ -212,44 +201,12 @@ class FirestoreSettings {
       this.host = DEFAULT_HOST;
       this.ssl = DEFAULT_SSL;
     } else {
-      validateNamedType('settings', 'non-empty string', 'host', settings.host);
       this.host = settings.host;
 
-      validateNamedOptionalType('settings', 'boolean', 'ssl', settings.ssl);
       this.ssl = settings.ssl ?? DEFAULT_SSL;
     }
-    validateOptionNames('settings', settings, [
-      'host',
-      'ssl',
-      'credentials',
-      'timestampsInSnapshots',
-      'cacheSizeBytes',
-      'experimentalForceLongPolling',
-      'experimentalAutoDetectLongPolling',
-      'ignoreUndefinedProperties'
-    ]);
 
-    validateNamedOptionalType(
-      'settings',
-      'object',
-      'credentials',
-      settings.credentials
-    );
     this.credentials = settings.credentials;
-
-    validateNamedOptionalType(
-      'settings',
-      'boolean',
-      'timestampsInSnapshots',
-      settings.timestampsInSnapshots
-    );
-
-    validateNamedOptionalType(
-      'settings',
-      'boolean',
-      'ignoreUndefinedProperties',
-      settings.ignoreUndefinedProperties
-    );
 
     // Nobody should set timestampsInSnapshots anymore, but the error depends on
     // whether they set it to true or false...
@@ -269,12 +226,6 @@ class FirestoreSettings {
     this.ignoreUndefinedProperties =
       settings.ignoreUndefinedProperties ?? DEFAULT_IGNORE_UNDEFINED_PROPERTIES;
 
-    validateNamedOptionalType(
-      'settings',
-      'number',
-      'cacheSizeBytes',
-      settings.cacheSizeBytes
-    );
     if (settings.cacheSizeBytes === undefined) {
       this.cacheSizeBytes = LruParams.DEFAULT_CACHE_SIZE_BYTES;
     } else {
@@ -291,21 +242,9 @@ class FirestoreSettings {
       }
     }
 
-    validateNamedOptionalType(
-      'settings',
-      'boolean',
-      'experimentalForceLongPolling',
-      settings.experimentalForceLongPolling
-    );
     this.experimentalForceLongPolling =
       settings.experimentalForceLongPolling ?? DEFAULT_FORCE_LONG_POLLING;
 
-    validateNamedOptionalType(
-      'settings',
-      'boolean',
-      'experimentalAutoDetectLongPolling',
-      settings.experimentalAutoDetectLongPolling
-    );
     this.experimentalAutoDetectLongPolling =
       settings.experimentalAutoDetectLongPolling ??
       DEFAULT_FORCE_AUTO_DETECT_LONG_POLLING;
@@ -412,9 +351,6 @@ export class Firestore implements PublicFirestore, FirebaseService {
   }
 
   settings(settingsLiteral: PublicSettings): void {
-    validateExactNumberOfArgs('Firestore.settings', arguments, 1);
-    validateArgType('Firestore.settings', 'object', 1, settingsLiteral);
-
     if (settingsLiteral.merge) {
       settingsLiteral = { ...this._settings, ...settingsLiteral };
       // Remove the property from the settings once the merge is completed
@@ -547,7 +483,6 @@ export class Firestore implements PublicFirestore, FirebaseService {
         arg as PartialObserver<void>
       );
     } else {
-      validateArgType('Firestore.onSnapshotsInSync', 'function', 1, arg);
       const observer: PartialObserver<void> = {
         next: arg as () => void
       };
@@ -644,8 +579,7 @@ export class Firestore implements PublicFirestore, FirebaseService {
   };
 
   collection(pathString: string): PublicCollectionReference {
-    validateExactNumberOfArgs('Firestore.collection', arguments, 1);
-    validateArgType('Firestore.collection', 'non-empty string', 1, pathString);
+    validateNonEmptyString('Firestore.collection', 'path', pathString);
     this.ensureClientConfigured();
     return new CollectionReference(
       ResourcePath.fromString(pathString),
@@ -655,8 +589,7 @@ export class Firestore implements PublicFirestore, FirebaseService {
   }
 
   doc(pathString: string): PublicDocumentReference {
-    validateExactNumberOfArgs('Firestore.doc', arguments, 1);
-    validateArgType('Firestore.doc', 'non-empty string', 1, pathString);
+    validateNonEmptyString('Firestore.doc', 'path', pathString);
     this.ensureClientConfigured();
     return DocumentReference.forPath(
       ResourcePath.fromString(pathString),
@@ -666,11 +599,9 @@ export class Firestore implements PublicFirestore, FirebaseService {
   }
 
   collectionGroup(collectionId: string): PublicQuery {
-    validateExactNumberOfArgs('Firestore.collectionGroup', arguments, 1);
-    validateArgType(
+    validateNonEmptyString(
       'Firestore.collectionGroup',
-      'non-empty string',
-      1,
+      'collectionId',
       collectionId
     );
     if (collectionId.indexOf('/') >= 0) {
@@ -691,8 +622,6 @@ export class Firestore implements PublicFirestore, FirebaseService {
   runTransaction<T>(
     updateFunction: (transaction: PublicTransaction) => Promise<T>
   ): Promise<T> {
-    validateExactNumberOfArgs('Firestore.runTransaction', arguments, 1);
-    validateArgType('Firestore.runTransaction', 'function', 1, updateFunction);
     return this.ensureClientConfigured().transaction(
       (transaction: InternalTransaction) => {
         return updateFunction(new Transaction(this, transaction));
@@ -727,13 +656,6 @@ export class Firestore implements PublicFirestore, FirebaseService {
   }
 
   static setLogLevel(level: PublicLogLevel): void {
-    validateExactNumberOfArgs('Firestore.setLogLevel', arguments, 1);
-    validateStringEnum(
-      'setLogLevel',
-      ['debug', 'error', 'silent', 'warn', 'info', 'verbose'],
-      1,
-      level
-    );
     setLogLevel(level);
   }
 
@@ -761,7 +683,6 @@ export class Transaction implements PublicTransaction {
   get<T>(
     documentRef: PublicDocumentReference<T>
   ): Promise<PublicDocumentSnapshot<T>> {
-    validateExactNumberOfArgs('Transaction.get', arguments, 1);
     const ref = validateReference(
       'Transaction.get',
       documentRef,
@@ -811,7 +732,6 @@ export class Transaction implements PublicTransaction {
     value: T | Partial<T>,
     options?: SetOptions
   ): Transaction {
-    validateBetweenNumberOfArgs('Transaction.set', arguments, 2, 3);
     const ref = validateReference(
       'Transaction.set',
       documentRef,
@@ -858,7 +778,6 @@ export class Transaction implements PublicTransaction {
       typeof fieldOrUpdateData === 'string' ||
       fieldOrUpdateData instanceof ExternalFieldPath
     ) {
-      validateAtLeastNumberOfArgs('Transaction.update', arguments, 3);
       ref = validateReference(
         'Transaction.update',
         documentRef,
@@ -873,7 +792,6 @@ export class Transaction implements PublicTransaction {
         moreFieldsAndValues
       );
     } else {
-      validateExactNumberOfArgs('Transaction.update', arguments, 2);
       ref = validateReference(
         'Transaction.update',
         documentRef,
@@ -892,7 +810,6 @@ export class Transaction implements PublicTransaction {
   }
 
   delete(documentRef: PublicDocumentReference<unknown>): Transaction {
-    validateExactNumberOfArgs('Transaction.delete', arguments, 1);
     const ref = validateReference(
       'Transaction.delete',
       documentRef,
@@ -920,7 +837,6 @@ export class WriteBatch implements PublicWriteBatch {
     value: T | Partial<T>,
     options?: SetOptions
   ): WriteBatch {
-    validateBetweenNumberOfArgs('WriteBatch.set', arguments, 2, 3);
     this.verifyNotCommitted();
     const ref = validateReference(
       'WriteBatch.set',
@@ -972,7 +888,6 @@ export class WriteBatch implements PublicWriteBatch {
       typeof fieldOrUpdateData === 'string' ||
       fieldOrUpdateData instanceof ExternalFieldPath
     ) {
-      validateAtLeastNumberOfArgs('WriteBatch.update', arguments, 3);
       ref = validateReference(
         'WriteBatch.update',
         documentRef,
@@ -987,7 +902,6 @@ export class WriteBatch implements PublicWriteBatch {
         moreFieldsAndValues
       );
     } else {
-      validateExactNumberOfArgs('WriteBatch.update', arguments, 2);
       ref = validateReference(
         'WriteBatch.update',
         documentRef,
@@ -1008,7 +922,6 @@ export class WriteBatch implements PublicWriteBatch {
   }
 
   delete(documentRef: PublicDocumentReference<unknown>): WriteBatch {
-    validateExactNumberOfArgs('WriteBatch.delete', arguments, 1);
     this.verifyNotCommitted();
     const ref = validateReference(
       'WriteBatch.delete',
@@ -1092,13 +1005,7 @@ export class DocumentReference<T = DocumentData>
   }
 
   collection(pathString: string): PublicCollectionReference<DocumentData> {
-    validateExactNumberOfArgs('DocumentReference.collection', arguments, 1);
-    validateArgType(
-      'DocumentReference.collection',
-      'non-empty string',
-      1,
-      pathString
-    );
+    validateNonEmptyString('DocumentReference.collection', 'path', pathString);
     if (!pathString) {
       throw new FirestoreError(
         Code.INVALID_ARGUMENT,
@@ -1127,7 +1034,6 @@ export class DocumentReference<T = DocumentData>
   set(value: Partial<T>, options: SetOptions): Promise<void>;
   set(value: T): Promise<void>;
   set(value: T | Partial<T>, options?: SetOptions): Promise<void> {
-    validateBetweenNumberOfArgs('DocumentReference.set', arguments, 1, 2);
     options = validateSetOptions('DocumentReference.set', options);
     const convertedValue = applyFirestoreDataConverter(
       this._converter,
@@ -1164,7 +1070,6 @@ export class DocumentReference<T = DocumentData>
       typeof fieldOrUpdateData === 'string' ||
       fieldOrUpdateData instanceof ExternalFieldPath
     ) {
-      validateAtLeastNumberOfArgs('DocumentReference.update', arguments, 2);
       parsed = parseUpdateVarargs(
         this.firestore._dataReader,
         'DocumentReference.update',
@@ -1174,7 +1079,6 @@ export class DocumentReference<T = DocumentData>
         moreFieldsAndValues
       );
     } else {
-      validateExactNumberOfArgs('DocumentReference.update', arguments, 1);
       parsed = parseUpdateData(
         this.firestore._dataReader,
         'DocumentReference.update',
@@ -1189,7 +1093,6 @@ export class DocumentReference<T = DocumentData>
   }
 
   delete(): Promise<void> {
-    validateExactNumberOfArgs('DocumentReference.delete', arguments, 0);
     return this._firestoreClient.write([
       new DeleteMutation(this._key, Precondition.none())
     ]);
@@ -1213,12 +1116,6 @@ export class DocumentReference<T = DocumentData>
   ): Unsubscribe;
 
   onSnapshot(...args: unknown[]): Unsubscribe {
-    validateBetweenNumberOfArgs(
-      'DocumentReference.onSnapshot',
-      arguments,
-      1,
-      4
-    );
     let options: ListenOptions = {
       includeMetadataChanges: false
     };
@@ -1228,15 +1125,6 @@ export class DocumentReference<T = DocumentData>
       !isPartialObserver(args[currArg])
     ) {
       options = args[currArg] as SnapshotListenOptions;
-      validateOptionNames('DocumentReference.onSnapshot', options, [
-        'includeMetadataChanges'
-      ]);
-      validateNamedOptionalType(
-        'DocumentReference.onSnapshot',
-        'boolean',
-        'includeMetadataChanges',
-        options.includeMetadataChanges
-      );
       currArg++;
     }
 
@@ -1251,25 +1139,6 @@ export class DocumentReference<T = DocumentData>
       args[currArg] = userObserver.next?.bind(userObserver);
       args[currArg + 1] = userObserver.error?.bind(userObserver);
       args[currArg + 2] = userObserver.complete?.bind(userObserver);
-    } else {
-      validateArgType(
-        'DocumentReference.onSnapshot',
-        'function',
-        currArg,
-        args[currArg]
-      );
-      validateOptionalArgType(
-        'DocumentReference.onSnapshot',
-        'function',
-        currArg + 1,
-        args[currArg + 1]
-      );
-      validateOptionalArgType(
-        'DocumentReference.onSnapshot',
-        'function',
-        currArg + 2,
-        args[currArg + 2]
-      );
     }
 
     const observer: PartialObserver<ViewSnapshot> = {
@@ -1292,9 +1161,6 @@ export class DocumentReference<T = DocumentData>
   }
 
   get(options?: GetOptions): Promise<PublicDocumentSnapshot<T>> {
-    validateBetweenNumberOfArgs('DocumentReference.get', arguments, 0, 1);
-    validateGetOptions('DocumentReference.get', options);
-
     const firestoreClient = this.firestore.ensureClientConfigured();
     if (options && options.source === 'cache') {
       return firestoreClient
@@ -1404,9 +1270,7 @@ export class DocumentSnapshot<T = DocumentData>
     private readonly _converter: FirestoreDataConverter<T> | null
   ) {}
 
-  data(options?: PublicSnapshotOptions): T | undefined {
-    validateBetweenNumberOfArgs('DocumentSnapshot.data', arguments, 0, 1);
-    options = validateSnapshotOptions('DocumentSnapshot.data', options);
+  data(options: PublicSnapshotOptions = {}): T | undefined {
     if (!this._document) {
       return undefined;
     } else {
@@ -1438,10 +1302,8 @@ export class DocumentSnapshot<T = DocumentData>
 
   get(
     fieldPath: string | ExternalFieldPath,
-    options?: PublicSnapshotOptions
+    options: PublicSnapshotOptions = {}
   ): unknown {
-    validateBetweenNumberOfArgs('DocumentSnapshot.get', arguments, 1, 2);
-    options = validateSnapshotOptions('DocumentSnapshot.get', options);
     if (this._document) {
       const value = this._document
         .data()
@@ -1932,24 +1794,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
     opStr: WhereFilterOp,
     value: unknown
   ): PublicQuery<T> {
-    validateExactNumberOfArgs('Query.where', arguments, 3);
-    validateDefined('Query.where', 3, value);
-
-    // Enumerated from the WhereFilterOp type in index.d.ts.
-    const whereFilterOpEnums = [
-      Operator.LESS_THAN,
-      Operator.LESS_THAN_OR_EQUAL,
-      Operator.EQUAL,
-      Operator.NOT_EQUAL,
-      Operator.GREATER_THAN_OR_EQUAL,
-      Operator.GREATER_THAN,
-      Operator.ARRAY_CONTAINS,
-      Operator.IN,
-      Operator.ARRAY_CONTAINS_ANY,
-      Operator.NOT_IN
-    ];
-    const op = validateStringEnum('Query.where', whereFilterOpEnums, 2, opStr);
-
     const fieldPath = fieldPathFromArgument('Query.where', field);
     const filter = newQueryFilter(
       this._query,
@@ -1957,7 +1801,7 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
       this.firestore._dataReader,
       this.firestore._databaseId,
       fieldPath,
-      op,
+      opStr as Operator,
       value
     );
     return new Query(
@@ -1971,13 +1815,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
     field: string | ExternalFieldPath,
     directionStr?: OrderByDirection
   ): PublicQuery<T> {
-    validateBetweenNumberOfArgs('Query.orderBy', arguments, 1, 2);
-    validateOptionalArgType(
-      'Query.orderBy',
-      'non-empty string',
-      2,
-      directionStr
-    );
     let direction: Direction;
     if (directionStr === undefined || directionStr === 'asc') {
       direction = Direction.ASCENDING;
@@ -2000,8 +1837,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
   }
 
   limit(n: number): PublicQuery<T> {
-    validateExactNumberOfArgs('Query.limit', arguments, 1);
-    validateArgType('Query.limit', 'number', 1, n);
     validatePositiveNumber('Query.limit', 1, n);
     return new Query(
       queryWithLimit(this._query, n, LimitType.First),
@@ -2011,8 +1846,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
   }
 
   limitToLast(n: number): PublicQuery<T> {
-    validateExactNumberOfArgs('Query.limitToLast', arguments, 1);
-    validateArgType('Query.limitToLast', 'number', 1, n);
     validatePositiveNumber('Query.limitToLast', 1, n);
     return new Query(
       queryWithLimit(this._query, n, LimitType.Last),
@@ -2025,7 +1858,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
     docOrField: unknown | PublicDocumentSnapshot<unknown>,
     ...fields: unknown[]
   ): PublicQuery<T> {
-    validateAtLeastNumberOfArgs('Query.startAt', arguments, 1);
     const bound = this.boundFromDocOrFields(
       'Query.startAt',
       docOrField,
@@ -2043,7 +1875,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
     docOrField: unknown | PublicDocumentSnapshot<unknown>,
     ...fields: unknown[]
   ): PublicQuery<T> {
-    validateAtLeastNumberOfArgs('Query.startAfter', arguments, 1);
     const bound = this.boundFromDocOrFields(
       'Query.startAfter',
       docOrField,
@@ -2061,7 +1892,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
     docOrField: unknown | PublicDocumentSnapshot<unknown>,
     ...fields: unknown[]
   ): PublicQuery<T> {
-    validateAtLeastNumberOfArgs('Query.endBefore', arguments, 1);
     const bound = this.boundFromDocOrFields(
       'Query.endBefore',
       docOrField,
@@ -2079,7 +1909,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
     docOrField: unknown | PublicDocumentSnapshot<unknown>,
     ...fields: unknown[]
   ): PublicQuery<T> {
-    validateAtLeastNumberOfArgs('Query.endAt', arguments, 1);
     const bound = this.boundFromDocOrFields(
       'Query.endAt',
       docOrField,
@@ -2115,9 +1944,7 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
     fields: unknown[],
     before: boolean
   ): Bound {
-    validateDefined(methodName, 1, docOrField);
     if (docOrField instanceof DocumentSnapshot) {
-      validateExactNumberOfArgs(methodName, [docOrField, ...fields], 1);
       return newQueryBoundFromDocument(
         this._query,
         this.firestore._databaseId,
@@ -2156,7 +1983,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
   ): Unsubscribe;
 
   onSnapshot(...args: unknown[]): Unsubscribe {
-    validateBetweenNumberOfArgs('Query.onSnapshot', arguments, 1, 4);
     let options: ListenOptions = {};
     let currArg = 0;
     if (
@@ -2164,15 +1990,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
       !isPartialObserver(args[currArg])
     ) {
       options = args[currArg] as SnapshotListenOptions;
-      validateOptionNames('Query.onSnapshot', options, [
-        'includeMetadataChanges'
-      ]);
-      validateNamedOptionalType(
-        'Query.onSnapshot',
-        'boolean',
-        'includeMetadataChanges',
-        options.includeMetadataChanges
-      );
       currArg++;
     }
 
@@ -2184,19 +2001,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
       args[currArg + 1] = userObserver.error?.bind(userObserver);
       args[currArg + 2] = userObserver.complete?.bind(userObserver);
     } else {
-      validateArgType('Query.onSnapshot', 'function', currArg, args[currArg]);
-      validateOptionalArgType(
-        'Query.onSnapshot',
-        'function',
-        currArg + 1,
-        args[currArg + 1]
-      );
-      validateOptionalArgType(
-        'Query.onSnapshot',
-        'function',
-        currArg + 2,
-        args[currArg + 2]
-      );
     }
 
     const observer: PartialObserver<ViewSnapshot> = {
@@ -2222,7 +2026,6 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
   }
 
   get(options?: GetOptions): Promise<PublicQuerySnapshot<T>> {
-    validateBetweenNumberOfArgs('Query.get', arguments, 0, 1);
     validateGetOptions('Query.get', options);
     validateHasExplicitOrderByForLimitToLast(this._query);
 
@@ -2273,8 +2076,6 @@ export class QuerySnapshot<T = DocumentData> implements PublicQuerySnapshot<T> {
     callback: (result: PublicQueryDocumentSnapshot<T>) => void,
     thisArg?: unknown
   ): void {
-    validateBetweenNumberOfArgs('QuerySnapshot.forEach', arguments, 1, 2);
-    validateArgType('QuerySnapshot.forEach', 'function', 1, callback);
     this._snapshot.docs.forEach(doc => {
       callback.call(
         thisArg,
@@ -2293,15 +2094,6 @@ export class QuerySnapshot<T = DocumentData> implements PublicQuerySnapshot<T> {
 
   docChanges(options?: SnapshotListenOptions): Array<PublicDocumentChange<T>> {
     if (options) {
-      validateOptionNames('QuerySnapshot.docChanges', options, [
-        'includeMetadataChanges'
-      ]);
-      validateNamedOptionalType(
-        'QuerySnapshot.docChanges',
-        'boolean',
-        'includeMetadataChanges',
-        options.includeMetadataChanges
-      );
     }
 
     const includeMetadataChanges = !!(
@@ -2402,18 +2194,11 @@ export class CollectionReference<T = DocumentData>
   }
 
   doc(pathString?: string): PublicDocumentReference<T> {
-    validateBetweenNumberOfArgs('CollectionReference.doc', arguments, 0, 1);
     // We allow omission of 'pathString' but explicitly prohibit passing in both
     // 'undefined' and 'null'.
     if (arguments.length === 0) {
       pathString = AutoId.newId();
     }
-    validateArgType(
-      'CollectionReference.doc',
-      'non-empty string',
-      1,
-      pathString
-    );
     const path = ResourcePath.fromString(pathString!);
     return DocumentReference.forPath<T>(
       this._query.path.child(path),
@@ -2423,12 +2208,9 @@ export class CollectionReference<T = DocumentData>
   }
 
   add(value: T): Promise<PublicDocumentReference<T>> {
-    validateExactNumberOfArgs('CollectionReference.add', arguments, 1);
     const convertedValue = this._converter
       ? this._converter.toFirestore(value)
       : value;
-    validateArgType('CollectionReference.add', 'object', 1, convertedValue);
-
     const docRef = this.doc();
 
     // Call set() with the converted value directly to avoid calling toFirestore() a second time.
@@ -2458,17 +2240,6 @@ function validateSetOptions(
     };
   }
 
-  validateOptionNames(methodName, options, ['merge', 'mergeFields']);
-  validateNamedOptionalType(methodName, 'boolean', 'merge', options.merge);
-  validateOptionalArrayElements(
-    methodName,
-    'mergeFields',
-    'a string or a FieldPath',
-    options.mergeFields,
-    element =>
-      typeof element === 'string' || element instanceof ExternalFieldPath
-  );
-
   if (options.mergeFields !== undefined && options.merge !== undefined) {
     throw new FirestoreError(
       Code.INVALID_ARGUMENT,
@@ -2480,39 +2251,11 @@ function validateSetOptions(
   return options;
 }
 
-function validateSnapshotOptions(
-  methodName: string,
-  options: PublicSnapshotOptions | undefined
-): PublicSnapshotOptions {
-  if (options === undefined) {
-    return {};
-  }
-
-  validateOptionNames(methodName, options, ['serverTimestamps']);
-  validateNamedOptionalPropertyEquals(
-    methodName,
-    'options',
-    'serverTimestamps',
-    options.serverTimestamps,
-    ['estimate', 'previous', 'none']
-  );
-  return options;
-}
-
 function validateGetOptions(
   methodName: string,
   options: GetOptions | undefined
 ): void {
-  validateOptionalArgType(methodName, 'object', 1, options);
   if (options) {
-    validateOptionNames(methodName, options, ['source']);
-    validateNamedOptionalPropertyEquals(
-      methodName,
-      'options',
-      'source',
-      options.source,
-      ['default', 'server', 'cache']
-    );
   }
 }
 

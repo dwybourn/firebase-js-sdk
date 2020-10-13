@@ -73,7 +73,7 @@ import { FieldPath } from './field_path';
 import {
   validateCollectionPath,
   validateDocumentPath,
-  validateExactNumberOfArgs,
+  validateNonEmptyString,
   validatePositiveNumber
 } from '../../../src/util/input_validation';
 import { newSerializer } from '../../../src/platform/serializer';
@@ -335,8 +335,6 @@ export function where(
   opStr: WhereFilterOp,
   value: unknown
 ): QueryConstraint {
-  // TODO(firestorelite): Consider validating the enum strings (note that
-  // TypeScript does not support passing invalid values).
   const op = opStr as Operator;
   const field = fieldPathFromArgument('where', fieldPath);
   return new QueryFilterConstraint(field, op, value);
@@ -381,8 +379,6 @@ export function orderBy(
   fieldPath: string | FieldPath,
   directionStr: OrderByDirection = 'asc'
 ): QueryConstraint {
-  // TODO(firestorelite): Consider validating the enum strings (note that
-  // TypeScript does not support passing invalid values).
   const direction = directionStr as Direction;
   const path = fieldPathFromArgument('orderBy', fieldPath);
   return new QueryOrderByConstraint(path, direction);
@@ -597,7 +593,6 @@ function newQueryBoundFromDocOrFields<T>(
   before: boolean
 ): Bound {
   if (docOrFields[0] instanceof DocumentSnapshot) {
-    validateExactNumberOfArgs(methodName, docOrFields, 1);
     return newQueryBoundFromDocument(
       query._query,
       query.firestore._databaseId,
@@ -738,7 +733,7 @@ export function collection(
   path: string,
   ...pathSegments: string[]
 ): CollectionReference<DocumentData> {
-  validateNonEmptyArgument('collection', 'path', path);
+  validateNonEmptyString('collection', 'path', path);
   if (parent instanceof FirebaseFirestore) {
     const absolutePath = ResourcePath.fromString(path, ...pathSegments);
     validateCollectionPath(absolutePath);
@@ -785,7 +780,7 @@ export function collectionGroup(
   firestore: FirebaseFirestore,
   collectionId: string
 ): Query<DocumentData> {
-  validateNonEmptyArgument('collectionGroup', 'collection id', collectionId);
+  validateNonEmptyString('collectionGroup', 'collection id', collectionId);
   if (collectionId.indexOf('/') >= 0) {
     throw new FirestoreError(
       Code.INVALID_ARGUMENT,
@@ -868,7 +863,7 @@ export function doc<T>(
   if (arguments.length === 1) {
     path = AutoId.newId();
   }
-  validateNonEmptyArgument('doc', 'path', path);
+  validateNonEmptyString('doc', 'path', path);
 
   if (parent instanceof FirebaseFirestore) {
     const absolutePath = ResourcePath.fromString(path, ...pathSegments);
@@ -1233,17 +1228,4 @@ export function newUserDataReader(
     !!settings.ignoreUndefinedProperties,
     serializer
   );
-}
-
-function validateNonEmptyArgument(
-  functionName: string,
-  argumentName: string,
-  argument?: string
-): asserts argument is string {
-  if (!argument) {
-    throw new FirestoreError(
-      Code.INVALID_ARGUMENT,
-      `Function ${functionName}() cannot be called with an empty ${argumentName}.`
-    );
-  }
 }
