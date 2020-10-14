@@ -62,6 +62,7 @@ import {
   findFilterOperator,
   getFirstOrderByField,
   getInequalityFilterField,
+  hasLimitToLast,
   isCollectionGroupQuery,
   LimitType,
   newQueryComparator,
@@ -76,8 +77,7 @@ import {
   queryWithAddedOrderBy,
   queryWithEndAt,
   queryWithLimit,
-  queryWithStartAt,
-  hasLimitToLast
+  queryWithStartAt
 } from '../core/query';
 import { Transaction as InternalTransaction } from '../core/transaction';
 import { ChangeType, ViewSnapshot } from '../core/view_snapshot';
@@ -92,11 +92,11 @@ import { debugAssert, fail } from '../util/assert';
 import { AsyncQueue } from '../util/async_queue';
 import { Code, FirestoreError } from '../util/error';
 import {
-  invalidClassError,
-  validatePositiveNumber,
-  valueDescription,
+  cast,
   validateIsNotUsedTogether,
-  validateNonEmptyString
+  validateNonEmptyString,
+  validatePositiveNumber,
+  valueDescription
 } from '../util/input_validation';
 import { getLogLevel, logError, LogLevel, setLogLevel } from '../util/log';
 import { AutoId } from '../util/misc';
@@ -1022,7 +1022,7 @@ export class DocumentReference<T = DocumentData>
 
   isEqual(other: PublicDocumentReference<T>): boolean {
     if (!(other instanceof DocumentReference)) {
-      throw invalidClassError('isEqual', 'DocumentReference', 1, other);
+      return false;
     }
     return (
       this.firestore === other.firestore &&
@@ -1346,7 +1346,7 @@ export class DocumentSnapshot<T = DocumentData>
 
   isEqual(other: PublicDocumentSnapshot<T>): boolean {
     if (!(other instanceof DocumentSnapshot)) {
-      throw invalidClassError('isEqual', 'DocumentSnapshot', 1, other);
+      return false;
     }
     return (
       this._firestore === other._firestore &&
@@ -1924,7 +1924,7 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
 
   isEqual(other: PublicQuery<T>): boolean {
     if (!(other instanceof Query)) {
-      throw invalidClassError('isEqual', 'Query', 1, other);
+      return false;
     }
     return (
       this.firestore === other.firestore &&
@@ -2126,7 +2126,7 @@ export class QuerySnapshot<T = DocumentData> implements PublicQuerySnapshot<T> {
   /** Check the equality. The call can be very expensive. */
   isEqual(other: PublicQuerySnapshot<T>): boolean {
     if (!(other instanceof QuerySnapshot)) {
-      throw invalidClassError('isEqual', 'QuerySnapshot', 1, other);
+      return false;
     }
 
     return (
@@ -2199,6 +2199,7 @@ export class CollectionReference<T = DocumentData>
     if (arguments.length === 0) {
       pathString = AutoId.newId();
     }
+    validateNonEmptyString('CollectionReference.doc', 'path', pathString);
     const path = ResourcePath.fromString(pathString!);
     return DocumentReference.forPath<T>(
       this._query.path.child(path),
@@ -2264,15 +2265,14 @@ function validateReference<T>(
   documentRef: PublicDocumentReference<T>,
   firestore: Firestore
 ): _DocumentKeyReference<T> {
-  if (!(documentRef instanceof _DocumentKeyReference)) {
-    throw invalidClassError(methodName, 'DocumentReference', 1, documentRef);
-  } else if (documentRef.firestore !== firestore) {
+  const reference = cast<DocumentReference<T>>(documentRef, DocumentReference);
+  if (reference.firestore !== firestore) {
     throw new FirestoreError(
       Code.INVALID_ARGUMENT,
       'Provided document reference is from a different Firestore instance.'
     );
   } else {
-    return documentRef;
+    return reference;
   }
 }
 

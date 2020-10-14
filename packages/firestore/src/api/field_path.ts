@@ -19,7 +19,6 @@ import { FieldPath as PublicFieldPath } from '@firebase/firestore-types';
 
 import { FieldPath as InternalFieldPath } from '../model/path';
 import { Code, FirestoreError } from '../util/error';
-import { invalidClassError } from '../util/input_validation';
 
 // The objects that are a part of this API are exposed to third-parties as
 // compiled javascript so we want to flag our private members with a leading
@@ -78,7 +77,7 @@ export class FieldPath extends _BaseFieldPath implements PublicFieldPath {
 
   isEqual(other: PublicFieldPath): boolean {
     if (!(other instanceof FieldPath)) {
-      throw invalidClassError('isEqual', 'FieldPath', 1, other);
+      return false;
     }
     return this._internalPath.isEqual(other._internalPath);
   }

@@ -16,7 +16,6 @@
  */
 import { fail } from './assert';
 import { Code, FirestoreError } from './error';
-import { Dict, forEach } from './obj';
 import { DocumentKey } from '../model/document_key';
 import { ResourcePath } from '../model/path';
 
@@ -143,21 +142,32 @@ export function tryGetCustomObjectType(input: object): string | null {
 }
 
 /**
- * Helper method to throw an error that the provided argument did not pass
- * an instanceof check.
+ * Casts `obj` to `T`. Throws if  `obj` is not an instance of `T`.
+ *
+ * This cast is used in the Lite and Full SDK to verify instance types for
+ * arguments passed to the public API.
  */
-export function invalidClassError(
-  functionName: string,
-  type: string,
-  position: number,
-  argument: unknown
-): Error {
-  const description = valueDescription(argument);
-  return new FirestoreError(
-    Code.INVALID_ARGUMENT,
-    `Function ${functionName}() requires its ${ordinal(position)} ` +
-      `argument to be a ${type}, but it was: ${description}`
-  );
+export function cast<T>(
+  obj: object,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor: { new (...args: any[]): T }
+): T | never {
+  if (!(obj instanceof constructor)) {
+    if (constructor.name === obj.constructor.name) {
+      throw new FirestoreError(
+        Code.INVALID_ARGUMENT,
+        'Type does not match the expected instance. Did you pass a ' +
+          `reference from a different Firestore SDK?`
+      );
+    } else {
+      const description = valueDescription(obj);
+      throw new FirestoreError(
+        Code.INVALID_ARGUMENT,
+        `Expected type '${constructor.name}', but it was: ${description}`
+      );
+    }
+  }
+  return obj as T;
 }
 
 export function validatePositiveNumber(

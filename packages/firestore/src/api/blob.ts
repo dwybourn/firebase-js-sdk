@@ -17,7 +17,6 @@
 
 import { isBase64Available } from '../platform/base64';
 import { Code, FirestoreError } from '../util/error';
-import { invalidClassError } from '../util/input_validation';
 import { ByteString } from '../util/byte_string';
 import { Bytes } from '../../lite/src/api/bytes';
 
@@ -66,9 +65,6 @@ export class Blob extends Bytes {
 
   static fromUint8Array(array: Uint8Array): Blob {
     assertUint8ArrayAvailable();
-    if (!(array instanceof Uint8Array)) {
-      throw invalidClassError('Blob.fromUint8Array', 'Uint8Array', 1, array);
-    }
     return new Blob(ByteString.fromUint8Array(array));
   }
 
