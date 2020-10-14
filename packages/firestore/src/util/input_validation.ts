@@ -170,38 +170,11 @@ export function cast<T>(
   return obj as T;
 }
 
-export function validatePositiveNumber(
-  functionName: string,
-  position: number,
-  n: number
-): void {
+export function validatePositiveNumber(functionName: string, n: number): void {
   if (n <= 0) {
     throw new FirestoreError(
       Code.INVALID_ARGUMENT,
-      `Function ${functionName}() requires its ${ordinal(
-        position
-      )} argument to be a positive number, but it was: ${n}.`
+      `Function ${functionName}() requires a positive number, but it was: ${n}.`
     );
   }
-}
-
-/** Converts a number to its english word representation */
-function ordinal(num: number): string {
-  switch (num) {
-    case 1:
-      return 'first';
-    case 2:
-      return 'second';
-    case 3:
-      return 'third';
-    default:
-      return num + 'th';
-  }
-}
-
-/**
- * Formats the given word as plural conditionally given the preceding number.
- */
-function formatPlural(num: number, str: string): string {
-  return `${num} ${str}` + (num === 1 ? '' : 's');
 }

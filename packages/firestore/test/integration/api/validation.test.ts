@@ -684,12 +684,12 @@ apiDescribe('Validation:', (persistence: boolean) => {
       expect(() => collection.limit(0)).to.throw(
         `Function ${
           usesFunctionalApi() ? 'limit' : 'Query.limit'
-        }() requires its first argument to be a positive number, but it was: 0.`
+        }() requires a positive number, but it was: 0.`
       );
       expect(() => collection.limitToLast(-1)).to.throw(
         `Function ${
           usesFunctionalApi() ? 'limitToLast' : 'Query.limitToLast'
-        }() requires its first argument to be a positive number, but it was: -1.`
+        }() requires a positive number, but it was: -1.`
       );
     });
 

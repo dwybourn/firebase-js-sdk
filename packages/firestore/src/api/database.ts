@@ -1837,7 +1837,7 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
   }
 
   limit(n: number): PublicQuery<T> {
-    validatePositiveNumber('Query.limit', 1, n);
+    validatePositiveNumber('Query.limit', n);
     return new Query(
       queryWithLimit(this._query, n, LimitType.First),
       this.firestore,
@@ -1846,7 +1846,7 @@ export class Query<T = DocumentData> implements PublicQuery<T> {
   }
 
   limitToLast(n: number): PublicQuery<T> {
-    validatePositiveNumber('Query.limitToLast', 1, n);
+    validatePositiveNumber('Query.limitToLast', n);
     return new Query(
       queryWithLimit(this._query, n, LimitType.Last),
       this.firestore,
@@ -2231,7 +2231,7 @@ export class CollectionReference<T = DocumentData>
   }
 }
 
-function validateSetOptions(
+export function validateSetOptions(
   methodName: string,
   options: SetOptions | undefined
 ): SetOptions {

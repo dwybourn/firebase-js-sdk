@@ -409,7 +409,7 @@ class QueryLimitConstraint extends QueryConstraint {
  * @return The created `Query`.
  */
 export function limit(limit: number): QueryConstraint {
-  validatePositiveNumber('limit', 1, limit);
+  validatePositiveNumber('limit', limit);
   return new QueryLimitConstraint('limit', limit, LimitType.First);
 }
 
@@ -423,7 +423,7 @@ export function limit(limit: number): QueryConstraint {
  * @return The created `Query`.
  */
 export function limitToLast(limit: number): QueryConstraint {
-  validatePositiveNumber('limitToLast', 1, limit);
+  validatePositiveNumber('limitToLast', limit);
   return new QueryLimitConstraint('limitToLast', limit, LimitType.Last);
 }
 
